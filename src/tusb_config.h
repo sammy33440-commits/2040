@@ -49,8 +49,16 @@
   #define CFG_TUSB_RHPORT1_MODE       OPT_MODE_HOST
   #define CFG_TUH_RPI_PIO_USB          1  // Enable PIO USB host driver
   
-  // MODIFICATION POUR WAVESHARE RP2350-PIZERO (PINS 28 & 29)
+  // --- FORÇAGE HARDCORE DES PINS (WAVESHARE RP2350) ---
+  // On efface toute configuration qui viendrait de la carte par défaut
+  #undef PICO_USB_HOST_DP_PIN
+  #undef PICO_USB_HOST_DM_PIN
+  
+  // On impose les pins physiques reliés au port USB-C (via l'adaptateur OTG)
   #define PICO_USB_HOST_DP_PIN        28
+  #define PICO_USB_HOST_DM_PIN        29
+  // ---------------------------------------------------
+
 #else
   // Host-only mode for existing console implementations
   #if CFG_TUSB_MCU == OPT_MCU_LPC43XX || CFG_TUSB_MCU == OPT_MCU_LPC18XX || CFG_TUSB_MCU == OPT_MCU_MIMXRT10XX
