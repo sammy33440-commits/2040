@@ -1,5 +1,4 @@
-/* 
- * The MIT License (MIT)
+/* * The MIT License (MIT)
  *
  * Copyright (c) 2019 Ha Thach (tinyusb.org)
  *
@@ -48,7 +47,10 @@
   // Device mode on RHPORT0 (native USB), Host mode on RHPORT1 (PIO USB)
   #define CFG_TUSB_RHPORT0_MODE       OPT_MODE_DEVICE
   #define CFG_TUSB_RHPORT1_MODE       OPT_MODE_HOST
-  #define CFG_TUH_RPI_PIO_USB         1  // Enable PIO USB host driver
+  #define CFG_TUH_RPI_PIO_USB          1  // Enable PIO USB host driver
+  
+  // MODIFICATION POUR WAVESHARE RP2350-PIZERO (PINS 28 & 29)
+  #define PICO_USB_HOST_DP_PIN        28
 #else
   // Host-only mode for existing console implementations
   #if CFG_TUSB_MCU == OPT_MCU_LPC43XX || CFG_TUSB_MCU == OPT_MCU_LPC18XX || CFG_TUSB_MCU == OPT_MCU_MIMXRT10XX
@@ -59,7 +61,7 @@
 #endif
 
 #ifndef CFG_TUSB_OS
-#define CFG_TUSB_OS                 OPT_OS_NONE
+#define CFG_TUSB_OS                  OPT_OS_NONE
 #endif
 
 // CFG_TUSB_DEBUG is defined by compiler in DEBUG build
