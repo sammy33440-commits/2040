@@ -1,7 +1,15 @@
 #include "tusb.h"
-#include "usb/usbd/usbd_mode.h"  // Chemin corrigé
-#include "usb/usbd/usbd.h"       // Chemin corrigé
+#include "usb/usbd/usbd_mode.h"
+#include "usb/usbd/usbd.h"
 #include <string.h>
+
+void usbh_init(void) {
+    tusb_init(1, NULL); // Initialise le port USB Host
+}
+
+void usbh_task(void) {
+    tuh_task(); // Tâche de fond pour l'USB Host
+}
 
 // Correction du warning de redéfinition
 #ifdef HID_KEY_SPACE
