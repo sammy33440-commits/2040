@@ -1,25 +1,15 @@
-// switch_descriptors.h - Nintendo Switch USB HID descriptors
-// RE-FIX : Mode Pro Controller (Version stable pour Joypad-OS)
-
 #ifndef SWITCH_DESCRIPTORS_H
 #define SWITCH_DESCRIPTORS_H
 
 #include <stdint.h>
 #include "tusb.h"
 
-// ============================================================================
-// SWITCH USB IDENTIFIERS
-// ============================================================================
+// Identity: On reprend Pokken pour la détection garantie
+#define SWITCH_VID              0x0F0D
+#define SWITCH_PID              0x0092
+#define SWITCH_BCD_DEVICE       0x0100
 
-// Nintendo Pro Controller (Officiel)
-#define SWITCH_VID              0x057E
-#define SWITCH_PID              0x2009
-#define SWITCH_BCD_DEVICE       0x0210
-
-// ============================================================================
-// SWITCH BUTTON DEFINITIONS
-// ============================================================================
-
+// On garde tes masques de boutons
 #define SWITCH_MASK_Y       (1U <<  0)
 #define SWITCH_MASK_B       (1U <<  1)
 #define SWITCH_MASK_A       (1U <<  2)
@@ -36,22 +26,12 @@
 #define SWITCH_MASK_CAPTURE (1U << 13)
 
 #define SWITCH_HAT_UP         0x00
-#define SWITCH_HAT_UP_RIGHT   0x01
 #define SWITCH_HAT_RIGHT      0x02
-#define SWITCH_HAT_DOWN_RIGHT 0x03
 #define SWITCH_HAT_DOWN       0x04
-#define SWITCH_HAT_DOWN_LEFT  0x05
 #define SWITCH_HAT_LEFT       0x06
-#define SWITCH_HAT_UP_LEFT    0x07
 #define SWITCH_HAT_CENTER     0x08
 
-#define SWITCH_JOYSTICK_MIN  0x00
 #define SWITCH_JOYSTICK_MID  0x80
-#define SWITCH_JOYSTICK_MAX  0xFF
-
-// ============================================================================
-// SWITCH REPORT STRUCTURES
-// ============================================================================
 
 typedef struct __attribute__((packed)) {
     uint16_t buttons;
@@ -63,91 +43,37 @@ typedef struct __attribute__((packed)) {
     uint8_t  vendor;
 } switch_in_report_t;
 
-_Static_assert(sizeof(switch_in_report_t) == 8, "switch_in_report_t must be 8 bytes");
-
-typedef struct __attribute__((packed)) {
-    uint8_t  data[8];
-} switch_out_report_t;
-
-// ============================================================================
-// SWITCH USB DESCRIPTORS
-// ============================================================================
-
+// LE PLAN : On simule une Pokken mais on déclare 16 boutons au lieu de 10
 static const uint8_t switch_report_descriptor[] = {
-    0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
-    0x09, 0x05,        // Usage (Game Pad)
-    0xA1, 0x01,        // Collection (Application)
-    0x15, 0x00,        //   Logical Minimum (0)
-    0x25, 0x01,        //   Logical Maximum (1)
-    0x35, 0x00,        //   Physical Minimum (0)
-    0x45, 0x01,        //   Physical Maximum (1)
-    0x75, 0x01,        //   Report Size (1)
-    0x95, 0x10,        //   Report Count (16) - DÉBLOQUE ZL/ZR
-    0x05, 0x09,        //   Usage Page (Button)
-    0x19, 0x01,        //   Usage Minimum (Button 1)
-    0x29, 0x10,        //   Usage Maximum (Button 16)
-    0x81, 0x02,        //   Input (Data,Var,Abs)
-    0x05, 0x01,        //   Usage Page (Generic Desktop Ctrls)
-    0x09, 0x39,        //   Usage (Hat switch)
-    0x15, 0x00,        //   Logical Minimum (0)
-    0x25, 0x07,        //   Logical Maximum (7)
-    0x35, 0x00,        //   Physical Minimum (0)
-    0x45, 0x3B, 0x01,  //   Physical Maximum (315)
-    0x75, 0x04,        //   Report Size (4)
-    0x95, 0x01,        //   Report Count (1)
-    0x81, 0x42,        //   Input (Data,Var,Abs,Null)
-    0x75, 0x04,        //   Report Size (4)
-    0x95, 0x01,        //   Report Count (1)
-    0x81, 0x01,        //   Input (Const)
-    0x05, 0x01,        //   Usage Page (Generic Desktop Ctrls)
-    0x26, 0xFF, 0x00,  //   Logical Maximum (255)
-    0x46, 0xFF, 0x00,  //   Physical Maximum (255)
-    0x09, 0x30,        //   Usage (X)
-    0x09, 0x31,        //   Usage (Y)
-    0x09, 0x32,        //   Usage (Z)
-    0x09, 0x35,        //   Usage (Rz)
-    0x75, 0x08,        //   Report Size (8)
-    0x95, 0x04,        //   Report Count (4)
-    0x81, 0x02,        //   Input (Data,Var,Abs)
-    0x06, 0x00, 0xFF,  //   Usage Page (Vendor Defined)
-    0x09, 0x20,        //   Usage (0x20)
-    0x95, 0x01,        //   Report Count (1)
-    0x81, 0x02,        //   Input (Data,Var,Abs)
-    0xC0               // End Collection
+    0x05, 0x01, 0x09, 0x05, 0xa1, 0x01, 0x15, 0x00, 
+    0x25, 0x01, 0x35, 0x00, 0x45, 0x01, 0x75, 0x01, 
+    0x95, 0x10, 0x05, 0x09, 0x19, 0x01, 0x29, 0x10, // 16 boutons (ZL/ZR inclus)
+    0x81, 0x02, 0x05, 0x01, 0x09, 0x39, 0x15, 0x00, 
+    0x25, 0x07, 0x35, 0x00, 0x45, 0x3b, 0x75, 0x04, 
+    0x95, 0x01, 0x81, 0x42, 0x75, 0x04, 0x95, 0x01, 
+    0x81, 0x01, 0x05, 0x01, 0x26, 0xff, 0x00, 0x46, 
+    0xff, 0x00, 0x09, 0x30, 0x09, 0x31, 0x09, 0x32, 
+    0x09, 0x35, 0x75, 0x08, 0x95, 0x04, 0x81, 0x02, 
+    0x06, 0x00, 0xff, 0x09, 0x20, 0x95, 0x01, 0x81, 
+    0x02, 0xc0
 };
 
 static const tusb_desc_device_t switch_device_descriptor = {
-    .bLength            = sizeof(tusb_desc_device_t),
-    .bDescriptorType    = TUSB_DESC_DEVICE,
-    .bcdUSB             = 0x0200,
-    .bDeviceClass       = 0x00,
-    .bDeviceSubClass    = 0x00,
-    .bDeviceProtocol    = 0x00,
-    .bMaxPacketSize0    = 64,
-    .idVendor           = SWITCH_VID,
-    .idProduct          = SWITCH_PID,
-    .bcdDevice          = SWITCH_BCD_DEVICE,
-    .iManufacturer      = 0x01,
-    .iProduct           = 0x02,
-    .iSerialNumber      = 0x03,
-    .bNumConfigurations = 0x01
+    .bLength = 18, .bDescriptorType = 1, .bcdUSB = 0x0200, 
+    .idVendor = SWITCH_VID, .idProduct = SWITCH_PID, .bcdDevice = 0x0100,
+    .iManufacturer = 1, .iProduct = 2, .iSerialNumber = 3, .bNumConfigurations = 1
 };
 
-// Configuration Descriptor (TUD_HID_DESC_LEN est remplacé par 9 pour plus de sûreté)
-#define SWITCH_CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + 9 + 7 + 7)
-
+#define SWITCH_CONFIG_TOTAL_LEN (9 + 9 + 9 + 7 + 7)
 static const uint8_t switch_config_descriptor[] = {
-    TUD_CONFIG_DESCRIPTOR(1, 1, 0, SWITCH_CONFIG_TOTAL_LEN, 0x80, 250),
-    // Interface
-    9, TUSB_DESC_INTERFACE, 0, 0, 2, TUSB_CLASS_HID, 0, 0, 0,
-    // HID Descriptor
-    9, HID_DESC_TYPE_HID, U16_TO_U8S_LE(0x0111), 0, 1, HID_DESC_TYPE_REPORT, U16_TO_U8S_LE(sizeof(switch_report_descriptor)),
-    // Endpoints
-    7, TUSB_DESC_ENDPOINT, 0x02, TUSB_XFER_INTERRUPT, U16_TO_U8S_LE(64), 1,
-    7, TUSB_DESC_ENDPOINT, 0x81, TUSB_XFER_INTERRUPT, U16_TO_U8S_LE(64), 1
+    0x09, 0x02, 0x29, 0x00, 0x01, 0x01, 0x00, 0x80, 0xfa,
+    0x09, 0x04, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00,
+    0x09, 0x21, 0x11, 0x01, 0x00, 0x01, 0x22, sizeof(switch_report_descriptor), 0x00,
+    0x07, 0x05, 0x02, 0x03, 0x40, 0x00, 0x01,
+    0x07, 0x05, 0x81, 0x03, 0x40, 0x00, 0x01
 };
 
-#define SWITCH_MANUFACTURER  "Nintendo"
-#define SWITCH_PRODUCT       "Pro Controller"
+#define SWITCH_MANUFACTURER "HORI CO.,LTD."
+#define SWITCH_PRODUCT "POKKEN CONTROLLER"
 
 #endif
