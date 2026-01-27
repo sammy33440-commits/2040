@@ -14,7 +14,7 @@
 // Mode changes require USB re-enumeration (device reset).
 
 #include "usbd.h"
-#include "usbd_mode.h"
+#include "usb/usbd/usbd_mode.h"
 #include "descriptors/hid_descriptors.h"
 #include "descriptors/xbox_og_descriptors.h"
 #include "descriptors/xinput_descriptors.h"
