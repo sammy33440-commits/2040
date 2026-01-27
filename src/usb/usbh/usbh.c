@@ -1,8 +1,6 @@
 #include "tusb.h"
-#include "../usbd_mode.h"
-#include "../usbd.h"
-#include "descriptors/switch_descriptors.h"
-#include "core/buttons.h"
+#include "usb/usbd/usbd_mode.h"  // Chemin corrigé
+#include "usb/usbd/usbd.h"       // Chemin corrigé
 #include <string.h>
 
 // Correction du warning de redéfinition
