@@ -1,7 +1,7 @@
 #include "usbd.h"
 #include "usbd_mode.h"
 
-// On n'inclut QUE ce qui existe réellement dans ton dossier usb/descriptors
+// CHEMINS ABSOLUS DEPUIS LE DOSSIER "SRC"
 #include "usb/descriptors/hid_descriptors.h"
 #include "usb/descriptors/switch_descriptors.h"
 
@@ -12,7 +12,7 @@
 extern const usbd_mode_t hid_mode;
 extern const usbd_mode_t switch_mode;
 
-// On force le mode Switch pour le test
+// On force le mode Switch pour tes tests
 static usb_output_mode_t output_mode = USB_OUTPUT_MODE_SWITCH; 
 const usbd_mode_t* usbd_modes[USB_OUTPUT_MODE_COUNT] = {0};
 static const usbd_mode_t* current_mode = NULL;
@@ -38,7 +38,6 @@ void usbd_init(void) {
 void usbd_task(void) {
     tud_task();
     if (current_mode && current_mode->is_ready && current_mode->is_ready()) {
-        // Envoi d'un rapport vide pour maintenir la connexion
         usbd_send_report(0);
     }
 }
