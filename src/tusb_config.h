@@ -1,6 +1,13 @@
 /* * The MIT License (MIT)
  *
  * Copyright (c) 2019 Ha Thach (tinyusb.org)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  */
 
 #ifndef _TUSB_CONFIG_H_
@@ -25,9 +32,9 @@
   // Dual-role USB configuration (host + device)
   #define CFG_TUSB_RHPORT0_MODE       OPT_MODE_DEVICE
   #define CFG_TUSB_RHPORT1_MODE       OPT_MODE_HOST
-  #define CFG_TUH_RPI_PIO_USB         1  
+  #define CFG_TUH_RPI_PIO_USB         1
 
-  // --- FORCE LES PINS 6/7 POUR WAVESHARE PIZERO ---
+  // === MODIFICATION POUR WAVESHARE PIZERO (GPIO 6/7) ===
   #ifdef PICO_USB_HOST_DP_PIN
     #undef PICO_USB_HOST_DP_PIN
   #endif
@@ -36,7 +43,7 @@
   #endif
   #define PICO_USB_HOST_DP_PIN        6
   #define PICO_USB_HOST_DM_PIN        7
-  // ----------------------------------------------
+  // =====================================================
 
 #else
   #if CFG_TUSB_MCU == OPT_MCU_LPC43XX || CFG_TUSB_MCU == OPT_MCU_LPC18XX || CFG_TUSB_MCU == OPT_MCU_MIMXRT10XX
