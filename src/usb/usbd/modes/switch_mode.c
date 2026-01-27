@@ -1,4 +1,4 @@
-// switch_mode.c - Nintendo Switch USB device mode
+// switch_mode.c - Nintendo Switch USB device mode (PRO CONTROLLER FIX)
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2024 Robert Dale Smith
 
@@ -19,7 +19,6 @@ static switch_in_report_t switch_report;
 // CONVERSION HELPERS
 // ============================================================================
 
-// Convert Joypad dpad to HID hat switch
 static uint8_t convert_dpad_to_hat(uint32_t buttons)
 {
     uint8_t up = (buttons & JP_BUTTON_DU) ? 1 : 0;
@@ -51,6 +50,7 @@ static void switch_mode_init(void)
     switch_report.ly = SWITCH_JOYSTICK_MID;
     switch_report.rx = SWITCH_JOYSTICK_MID;
     switch_report.ry = SWITCH_JOYSTICK_MID;
+    switch_report.vendor = 0;
 }
 
 static bool switch_mode_is_ready(void)
@@ -66,35 +66,37 @@ static bool switch_mode_send_report(uint8_t player_index,
     (void)player_index;
     (void)event;
 
-    // Buttons (16-bit) - position-based mapping (matches GP2040-CE)
+    // Mapping des 16 bits de boutons
     switch_report.buttons = 0;
-    if (buttons & JP_BUTTON_B1) switch_report.buttons |= SWITCH_MASK_B;     // B1 (bottom) -> B
-    if (buttons & JP_BUTTON_B2) switch_report.buttons |= SWITCH_MASK_A;     // B2 (right)  -> A
-    if (buttons & JP_BUTTON_B3) switch_report.buttons |= SWITCH_MASK_Y;     // B3 (left)   -> Y
-    if (buttons & JP_BUTTON_B4) switch_report.buttons |= SWITCH_MASK_X;     // B4 (top)    -> X
-    if (buttons & JP_BUTTON_L1) switch_report.buttons |= SWITCH_MASK_L;     // L
-    if (buttons & JP_BUTTON_R1) switch_report.buttons |= SWITCH_MASK_R;     // R
-    if (buttons & JP_BUTTON_L2) switch_report.buttons |= SWITCH_MASK_ZL;    // ZL
-    if (buttons & JP_BUTTON_R2) switch_report.buttons |= SWITCH_MASK_ZR;    // ZR
-    if (buttons & JP_BUTTON_S1) switch_report.buttons |= SWITCH_MASK_MINUS; // Minus
-    if (buttons & JP_BUTTON_S2) switch_report.buttons |= SWITCH_MASK_PLUS;  // Plus
+    if (buttons & JP_BUTTON_B1) switch_report.buttons |= SWITCH_MASK_B;
+    if (buttons & JP_BUTTON_B2) switch_report.buttons |= SWITCH_MASK_A;
+    if (buttons & JP_BUTTON_B3) switch_report.buttons |= SWITCH_MASK_Y;
+    if (buttons & JP_BUTTON_B4) switch_report.buttons |= SWITCH_MASK_X;
+    
+    if (buttons & JP_BUTTON_L1) switch_report.buttons |= SWITCH_MASK_L;
+    if (buttons & JP_BUTTON_R1) switch_report.buttons |= SWITCH_MASK_R;
+    if (buttons & JP_BUTTON_L2) switch_report.buttons |= SWITCH_MASK_ZL;
+    if (buttons & JP_BUTTON_R2) switch_report.buttons |= SWITCH_MASK_ZR;
+    
+    if (buttons & JP_BUTTON_S1) switch_report.buttons |= SWITCH_MASK_MINUS;
+    if (buttons & JP_BUTTON_S2) switch_report.buttons |= SWITCH_MASK_PLUS;
     if (buttons & JP_BUTTON_L3) switch_report.buttons |= SWITCH_MASK_L3;
     if (buttons & JP_BUTTON_R3) switch_report.buttons |= SWITCH_MASK_R3;
+    
     if (buttons & JP_BUTTON_A1) switch_report.buttons |= SWITCH_MASK_HOME;
     if (buttons & JP_BUTTON_A2) switch_report.buttons |= SWITCH_MASK_CAPTURE;
 
-    // D-pad as hat switch
     switch_report.hat = convert_dpad_to_hat(buttons);
 
-    // Analog sticks (HID convention: 0=up, 255=down - no inversion needed)
     switch_report.lx = profile_out->left_x;
     switch_report.ly = profile_out->left_y;
     switch_report.rx = profile_out->right_x;
     switch_report.ry = profile_out->right_y;
-
+    
     switch_report.vendor = 0;
 
-    return tud_hid_report(0, &switch_report, sizeof(switch_report));
+    // ON ENVOIE EXACTEMENT LA TAILLE DU DESCRIPTEUR
+    return tud_hid_report(0, &switch_report, sizeof(switch_in_report_t));
 }
 
 static const uint8_t* switch_mode_get_device_descriptor(void)
@@ -128,7 +130,6 @@ const usbd_mode_t switch_mode = {
     .send_report = switch_mode_send_report,
     .is_ready = switch_mode_is_ready,
 
-    // No feedback support for Switch mode (basic HID)
     .handle_output = NULL,
     .get_rumble = NULL,
     .get_feedback = NULL,
