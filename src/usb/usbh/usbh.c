@@ -1,17 +1,12 @@
-// usbh.c - USB Host implementation
-// SPDX-License-Identifier: Apache-2.0
-
 #include "tusb.h"
 #include "usb/usbd/usbd_mode.h"
 #include "usb/usbd/usbd.h"
 #include <string.h>
 
-// Initialisation du port USB Host (celui où tu branches ta manette)
 void usbh_init(void) {
-    tusb_init(1, NULL); 
+    tusb_init(1, NULL); // Initialise le port HOST (Port 1 sur RP2040)
 }
 
-// Tâche de fond pour gérer les périphériques branchés
 void usbh_task(void) {
-    tuh_task(); 
+    tuh_task();
 }
