@@ -3,11 +3,15 @@
 // Copyright 2024 Robert Dale Smith
 
 #include "tusb.h"
-#include "../usbd_mode.h"
-#include "../usbd.h"
-#include "descriptors/switch_descriptors.h"
+#include "switch_mode.h"
+#include "usb/usbd/usbd.h"
+#include "usb/descriptors/switch_descriptors.h"
 #include "core/buttons.h"
 #include <string.h>
+
+#ifdef HID_KEY_SPACE
+#undef HID_KEY_SPACE
+#endif
 
 // ============================================================================
 // STATE
