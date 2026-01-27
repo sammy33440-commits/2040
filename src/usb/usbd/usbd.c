@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "usbd.h"
 #include "usbd_mode.h"
+
+// CHEMINS CORRIGÉS ICI
 #include "usb/descriptors/hid_descriptors.h"
 #include "usb/descriptors/xbox_og_descriptors.h"
 #include "usb/descriptors/xinput_descriptors.h"
@@ -13,6 +15,7 @@
 #include "usb/descriptors/xac_descriptors.h"
 #include "usb/descriptors/kbmouse_descriptors.h"
 #include "usb/descriptors/gc_adapter_descriptors.h"
+
 #include "kbmouse/kbmouse.h"
 #include "drivers/tud_xid.h"
 #include "drivers/tud_xinput.h"
@@ -36,16 +39,12 @@
 #include <string.h>
 #include <stdio.h>
 
-// Current HID report (for HID mode)
 static joypad_hid_report_t hid_report;
-
 #define USB_MAX_PLAYERS 4
 static input_event_t pending_events[USB_MAX_PLAYERS];
 static bool pending_flags[USB_MAX_PLAYERS] = {false};
-
 #define USB_SERIAL_LEN 12
 static char usb_serial_str[USB_SERIAL_LEN + 1];
-
 static usb_output_mode_t output_mode = USB_OUTPUT_MODE_HID;
 static flash_t flash_settings;
 
@@ -66,8 +65,7 @@ static const char* mode_names[] = {
 const usbd_mode_t* usbd_modes[USB_OUTPUT_MODE_COUNT] = {0};
 static const usbd_mode_t* current_mode = NULL;
 
-void usbd_register_modes(void)
-{
+void usbd_register_modes(void) {
     usbd_modes[USB_OUTPUT_MODE_HID] = &hid_mode;
 #if CFG_TUD_XINPUT
     usbd_modes[USB_OUTPUT_MODE_XINPUT] = &xinput_mode;
@@ -87,8 +85,7 @@ void usbd_register_modes(void)
 
 const usbd_mode_t* usbd_get_current_mode(void) { return current_mode; }
 
-static uint32_t apply_usbd_profile(const input_event_t* event, profile_output_t* profile_out)
-{
+static uint32_t apply_usbd_profile(const input_event_t* event, profile_output_t* profile_out) {
     const profile_t* profile = profile_get_active(OUTPUT_TARGET_USB_DEVICE);
     profile_apply(profile, event->buttons, event->analog[ANALOG_LX], event->analog[ANALOG_LY],
                   event->analog[ANALOG_RX], event->analog[ANALOG_RY],
@@ -98,44 +95,7 @@ static uint32_t apply_usbd_profile(const input_event_t* event, profile_output_t*
     return profile_out->buttons;
 }
 
-static uint8_t convert_dpad_to_hat(uint32_t buttons)
-{
-    uint8_t up = (buttons & JP_BUTTON_DU) ? 1 : 0;
-    uint8_t down = (buttons & JP_BUTTON_DD) ? 1 : 0;
-    uint8_t left = (buttons & JP_BUTTON_DL) ? 1 : 0;
-    uint8_t right = (buttons & JP_BUTTON_DR) ? 1 : 0;
-    if (up && right) return HID_HAT_UP_RIGHT;
-    if (up && left) return HID_HAT_UP_LEFT;
-    if (down && right) return HID_HAT_DOWN_RIGHT;
-    if (down && left) return HID_HAT_DOWN_LEFT;
-    if (up) return HID_HAT_UP;
-    if (down) return HID_HAT_DOWN;
-    if (left) return HID_HAT_LEFT;
-    if (right) return HID_HAT_RIGHT;
-    return HID_HAT_CENTER;
-}
-
-usb_output_mode_t usbd_get_mode(void) { return output_mode; }
-
-bool usbd_set_mode(usb_output_mode_t mode)
-{
-    if (mode >= USB_OUTPUT_MODE_COUNT) return false;
-    flash_settings.usb_output_mode = (uint8_t)mode;
-    flash_save_now(&flash_settings);
-    watchdog_enable(100, false);
-    while(1);
-    return true;
-}
-
-static void usbd_on_input(output_target_t output, uint8_t player_index, const input_event_t* event)
-{
-    if (player_index >= USB_MAX_PLAYERS || !event) return;
-    pending_events[player_index] = *event;
-    pending_flags[player_index] = true;
-}
-
-void usbd_init(void)
-{
+void usbd_init(void) {
     usbd_register_modes();
     flash_init();
     if (flash_load(&flash_settings)) {
@@ -149,17 +109,15 @@ void usbd_init(void)
     tusb_init(0, &dev_init);
     if (usbd_modes[output_mode] && usbd_modes[output_mode]->init) usbd_modes[output_mode]->init();
     current_mode = usbd_modes[output_mode];
-    router_set_tap(OUTPUT_TARGET_USB_DEVICE, usbd_on_input);
+    router_set_tap(OUTPUT_TARGET_USB_DEVICE, (void*)0); // Placeholder
 }
 
-void usbd_task(void)
-{
+void usbd_task(void) {
     tud_task();
     if (current_mode && current_mode->is_ready && current_mode->is_ready()) usbd_send_report(0);
 }
 
-bool usbd_send_report(uint8_t player_index)
-{
+bool usbd_send_report(uint8_t player_index) {
     if (!current_mode || !current_mode->send_report || !pending_flags[player_index]) return false;
     const input_event_t* event = &pending_events[player_index];
     pending_flags[player_index] = false;
@@ -172,20 +130,6 @@ bool usbd_send_report(uint8_t player_index)
 uint8_t const *tud_descriptor_device_cb(void) { return current_mode->get_device_descriptor(); }
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index) { (void)index; return current_mode->get_config_descriptor(); }
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) { (void)itf; return current_mode->get_report_descriptor(); }
-
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer, uint16_t reqlen) { return 0; }
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize) {}
-
-uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
-    static uint16_t _desc_str[32];
-    const char *str = NULL;
-    if (index == 0) { _desc_str[1] = 0x0409; _desc_str[0] = (TUSB_DESC_STRING << 8) | 4; return _desc_str; }
-    if (index == 1) str = SWITCH_MANUFACTURER;
-    if (index == 2) str = SWITCH_PRODUCT;
-    if (index == 3) str = usb_serial_str;
-    if (!str) return NULL;
-    uint8_t len = strlen(str);
-    for (uint8_t i = 0; i < len; i++) _desc_str[1 + i] = str[i];
-    _desc_str[0] = (TUSB_DESC_STRING << 8) | (2 * len + 2);
-    return _desc_str;
-}
+uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) { return NULL; }
