@@ -1,15 +1,16 @@
 #include "tusb.h"
-#include "usb/usbd/usbd.h"
-#include "usb/usbd/usbd_mode.h"
 #include "usb/descriptors/switch_descriptors.h"
+#include "usb/usbd/usbd.h"
 #include <string.h>
 
 static switch_in_report_t switch_report;
 
 static void switch_mode_init(void) {
     memset(&switch_report, 0, sizeof(switch_in_report_t));
-    switch_report.lx = switch_report.ly = 128;
-    switch_report.rx = switch_report.ry = 128;
+    switch_report.lx = 128;
+    switch_report.ly = 128;
+    switch_report.rx = 128;
+    switch_report.ry = 128;
     switch_report.hat = 8;
 }
 
@@ -18,12 +19,7 @@ static bool switch_mode_is_ready(void) {
 }
 
 static bool switch_mode_send_report(uint8_t player_index, const void* event, const void* profile_out, uint32_t buttons) {
-    (void)player_index; (void)event; (void)profile_out;
-    
-    switch_report.buttons = 0;
-    // Test : on mappe le bouton 1 sur A
-    if (buttons & 0x01) switch_report.buttons |= SWITCH_MASK_A;
-    
+    (void)player_index; (void)event; (void)profile_out; (void)buttons;
     return tud_hid_report(0, &switch_report, sizeof(switch_in_report_t));
 }
 
