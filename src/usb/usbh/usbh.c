@@ -1,151 +1,96 @@
-// usbh.c - USB Host Layer
-//
-// Provides unified USB host handling across HID, X-input, and Bluetooth protocols.
-// Device drivers read per-player feedback state from feedback_get_state().
-
-#include "usbh.h"
 #include "tusb.h"
-#include "core/services/players/manager.h"
-#include "core/services/codes/codes.h"
-#include <stdio.h>
+#include "../usbd_mode.h"
+#include "../usbd.h"
+#include "descriptors/switch_descriptors.h"
+#include "core/buttons.h"
+#include <string.h>
 
-#if defined(CONFIG_USB) && CFG_TUH_RPI_PIO_USB
-#include "pio_usb.h"
-#include "hardware/gpio.h"
+// Correction du warning de redéfinition
+#ifdef HID_KEY_SPACE
+#undef HID_KEY_SPACE
 #endif
 
-// HID protocol handlers
-extern void hid_init(void);
-extern void hid_task(void);
+static switch_in_report_t switch_report;
 
-// X-input protocol handlers
-extern void xinput_task(void);
-
-// BTstack (Bluetooth) protocol handlers
-#if CFG_TUH_BTD
-#include "btd/hci_transport_h2_tinyusb.h"
-#include "bt/transport/bt_transport.h"
-extern const bt_transport_t bt_transport_usb;
-#endif
-
-// PIO USB pin definitions (configurable per board)
-#if defined(CONFIG_PIO_USB_DP_PIN)
-    // Use CMake-configured pin (e.g., rp2040zero, custom boards)
-    #define PIO_USB_DP_PIN      CONFIG_PIO_USB_DP_PIN
-#elif defined(ADAFRUIT_FEATHER_RP2040_USB_HOST)
-    // Feather RP2040 USB Host board
-    #define PIO_USB_VBUS_PIN    18  // VBUS enable for USB-A port
-    #define PIO_USB_DP_PIN      16  // D+ pin for PIO USB
-#endif
-
-void usbh_init(void)
+static uint8_t convert_dpad_to_hat(uint32_t buttons)
 {
-    printf("[usbh] Initializing USB host\n");
+    uint8_t up = (buttons & JP_BUTTON_DU) ? 1 : 0;
+    uint8_t down = (buttons & JP_BUTTON_DD) ? 1 : 0;
+    uint8_t left = (buttons & JP_BUTTON_DL) ? 1 : 0;
+    uint8_t right = (buttons & JP_BUTTON_DR) ? 1 : 0;
 
-    hid_init();
+    if (up && right) return SWITCH_HAT_UP_RIGHT;
+    if (up && left) return SWITCH_HAT_UP_LEFT;
+    if (down && right) return SWITCH_HAT_DOWN_RIGHT;
+    if (down && left) return SWITCH_HAT_DOWN_LEFT;
+    if (up) return SWITCH_HAT_UP;
+    if (down) return SWITCH_HAT_DOWN;
+    if (left) return SWITCH_HAT_LEFT;
+    if (right) return SWITCH_HAT_RIGHT;
 
-#if defined(CONFIG_USB) && CFG_TUH_RPI_PIO_USB
-    // Dual USB mode: Host on rhport 1 (PIO USB for boards with separate host port)
-
-#ifdef PIO_USB_VBUS_PIN
-    // Enable VBUS power for USB-A port (required on Feather RP2040 USB Host)
-    gpio_init(PIO_USB_VBUS_PIN);
-    gpio_set_dir(PIO_USB_VBUS_PIN, GPIO_OUT);
-    gpio_put(PIO_USB_VBUS_PIN, 1);
-    printf("[usbh] Enabled VBUS on GPIO %d\n", PIO_USB_VBUS_PIN);
-#endif
-
-    // Configure PIO USB to use PIO1 (PIO0 is used by NeoPixel)
-    pio_usb_configuration_t pio_cfg = {
-        .pin_dp = PIO_USB_DP_PIN_DEFAULT,
-        .pio_tx_num = 1,      // Use PIO1 for TX
-        .sm_tx = 0,
-        .tx_ch = 0,
-        .pio_rx_num = 1,      // Use PIO1 for RX
-        .sm_rx = 1,
-        .sm_eop = 2,
-        .alarm_pool = NULL,
-        .debug_pin_rx = -1,
-        .debug_pin_eop = -1,
-        .skip_alarm_pool = false,
-        .pinout = PIO_USB_PINOUT_DPDM,
-    };
-
-#ifdef PIO_USB_DP_PIN
-    pio_cfg.pin_dp = PIO_USB_DP_PIN;
-#endif
-
-    // Configure TinyUSB PIO USB driver before initialization
-    tuh_configure(1, TUH_CFGID_RPI_PIO_USB_CONFIGURATION, &pio_cfg);
-
-    tusb_rhport_init_t host_init = {
-        .role = TUSB_ROLE_HOST,
-        .speed = TUSB_SPEED_FULL  // PIO USB is Full Speed only
-    };
-    tusb_init(1, &host_init);
-#elif defined(CONFIG_USB)
-    // CONFIG_USB but no PIO USB - shouldn't happen but handle gracefully
-    printf("[usbh] Warning: CONFIG_USB without PIO USB support\n");
-#else
-    // Single USB mode: Host on rhport 0 (native USB)
-    tusb_init();
-#endif
-
-#if CFG_TUH_BTD
-    // Initialize Bluetooth transport (for USB BT dongle support)
-    bt_init(&bt_transport_usb);
-#endif
-
-    printf("[usbh] Initialization complete\n");
+    return SWITCH_HAT_CENTER;
 }
 
-void usbh_task(void)
+static void switch_mode_init(void)
 {
-    // TinyUSB host polling
-    tuh_task();
-
-#if CFG_TUH_XINPUT
-    xinput_task();
-#endif
-
-#if CFG_TUH_HID
-    hid_task();
-#endif
-
-#if CFG_TUH_BTD
-    hci_transport_h2_tinyusb_process();
-    bt_task();
-#endif
+    memset(&switch_report, 0, sizeof(switch_in_report_t));
+    switch_report.hat = SWITCH_HAT_CENTER;
+    switch_report.lx = SWITCH_JOYSTICK_MID;
+    switch_report.ly = SWITCH_JOYSTICK_MID;
+    switch_report.rx = SWITCH_JOYSTICK_MID;
+    switch_report.ry = SWITCH_JOYSTICK_MID;
+    switch_report.vendor = 0;
 }
 
-//--------------------------------------------------------------------+
-// TinyUSB Callbacks
-//--------------------------------------------------------------------+
-
-void tuh_mount_cb(uint8_t dev_addr)
+static bool switch_mode_is_ready(void)
 {
-    printf("A device with address %d is mounted\r\n", dev_addr);
+    return tud_hid_ready();
 }
 
-void tuh_umount_cb(uint8_t dev_addr)
+static bool switch_mode_send_report(uint8_t player_index,
+                                     const input_event_t* event,
+                                     const profile_output_t* profile_out,
+                                     uint32_t buttons)
 {
-    printf("A device with address %d is unmounted\r\n", dev_addr);
+    (void)player_index; (void)event;
 
-    remove_players_by_address(dev_addr, -1);
+    switch_report.buttons = 0;
+    if (buttons & JP_BUTTON_B1) switch_report.buttons |= SWITCH_MASK_B;
+    if (buttons & JP_BUTTON_B2) switch_report.buttons |= SWITCH_MASK_A;
+    if (buttons & JP_BUTTON_B3) switch_report.buttons |= SWITCH_MASK_Y;
+    if (buttons & JP_BUTTON_B4) switch_report.buttons |= SWITCH_MASK_X;
+    if (buttons & JP_BUTTON_L1) switch_report.buttons |= SWITCH_MASK_L;
+    if (buttons & JP_BUTTON_R1) switch_report.buttons |= SWITCH_MASK_R;
+    if (buttons & JP_BUTTON_L2) switch_report.buttons |= SWITCH_MASK_ZL;
+    if (buttons & JP_BUTTON_R2) switch_report.buttons |= SWITCH_MASK_ZR;
+    if (buttons & JP_BUTTON_S1) switch_report.buttons |= SWITCH_MASK_MINUS;
+    if (buttons & JP_BUTTON_S2) switch_report.buttons |= SWITCH_MASK_PLUS;
+    if (buttons & JP_BUTTON_L3) switch_report.buttons |= SWITCH_MASK_L3;
+    if (buttons & JP_BUTTON_R3) switch_report.buttons |= SWITCH_MASK_R3;
+    if (buttons & JP_BUTTON_A1) switch_report.buttons |= SWITCH_MASK_HOME;
+    if (buttons & JP_BUTTON_A2) switch_report.buttons |= SWITCH_MASK_CAPTURE;
 
-    // Reset test mode when device disconnects
-    codes_reset_test_mode();
+    switch_report.hat = convert_dpad_to_hat(buttons);
+    switch_report.lx = profile_out->left_x;
+    switch_report.ly = profile_out->left_y;
+    switch_report.rx = profile_out->right_x;
+    switch_report.ry = profile_out->right_y;
+    switch_report.vendor = 0;
+
+    return tud_hid_report(0, &switch_report, sizeof(switch_in_report_t));
 }
 
-//--------------------------------------------------------------------+
-// Input Interface
-//--------------------------------------------------------------------+
+static const uint8_t* switch_mode_get_device_descriptor(void) { return (const uint8_t*)&switch_device_descriptor; }
+static const uint8_t* switch_mode_get_config_descriptor(void) { return switch_config_descriptor; }
+static const uint8_t* switch_mode_get_report_descriptor(void) { return switch_report_descriptor; }
 
-const InputInterface usbh_input_interface = {
-    .name = "USB Host",
-    .source = INPUT_SOURCE_USB_HOST,
-    .init = usbh_init,
-    .task = usbh_task,
-    .is_connected = NULL,       // TODO: Track connected device count
-    .get_device_count = NULL,   // TODO: Return connected device count
+const usbd_mode_t switch_mode = {
+    .name = "Switch",
+    .mode = USB_OUTPUT_MODE_SWITCH,
+    .get_device_descriptor = switch_mode_get_device_descriptor,
+    .get_config_descriptor = switch_mode_get_config_descriptor,
+    .get_report_descriptor = switch_mode_get_report_descriptor,
+    .init = switch_mode_init,
+    .send_report = switch_mode_send_report,
+    .is_ready = switch_mode_is_ready,
 };
