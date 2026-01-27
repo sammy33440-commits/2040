@@ -1,12 +1,11 @@
 #include "tusb.h"
-#include "usb/usbd/usbd_mode.h"
-#include "usb/usbd/usbd.h"
 #include <string.h>
 
 void usbh_init(void) {
-    tusb_init(1, NULL); // Mode Host sur le port 1
+    // Initialise le port HOST (Port 1 sur RP2040)
+    tusb_init(1, NULL); 
 }
 
 void usbh_task(void) {
-    tuh_task();
+    tuh_task(); 
 }
