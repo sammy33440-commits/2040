@@ -1,5 +1,7 @@
 #include "usbd.h"
 #include "usbd_mode.h"
+
+// CHEMINS ABSOLUS DEPUIS "SRC"
 #include "usb/descriptors/hid_descriptors.h"
 #include "usb/descriptors/xbox_og_descriptors.h"
 #include "usb/descriptors/xinput_descriptors.h"
@@ -11,6 +13,7 @@
 #include "usb/descriptors/xac_descriptors.h"
 #include "usb/descriptors/kbmouse_descriptors.h"
 #include "usb/descriptors/gc_adapter_descriptors.h"
+
 #include "kbmouse/kbmouse.h"
 #include "drivers/tud_xid.h"
 #include "drivers/tud_xinput.h"
@@ -50,7 +53,7 @@ void usbd_register_modes(void) {
     usbd_modes[USB_OUTPUT_MODE_SWITCH] = &switch_mode;
     usbd_modes[USB_OUTPUT_MODE_PS3] = &ps3_mode;
     usbd_modes[USB_OUTPUT_MODE_PS4] = &ps4_mode;
-    // Ajoutez d'autres modes ici si nécessaire
+    usbd_modes[USB_OUTPUT_MODE_XINPUT] = &xinput_mode;
 }
 
 void usbd_init(void) {
@@ -66,9 +69,7 @@ void usbd_init(void) {
 
 void usbd_task(void) {
     tud_task();
-    if (current_mode && current_mode->is_ready()) {
-        // Logique d'envoi de rapport simplifiée
-    }
+    if (current_mode && current_mode->is_ready()) { usbd_send_report(0); }
 }
 
 bool usbd_send_report(uint8_t player_index) { return true; }
@@ -77,3 +78,4 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index) { return current_m
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) { return current_mode->get_report_descriptor(); }
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize) {}
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer, uint16_t reqlen) { return 0; }
+uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) { return NULL; }
