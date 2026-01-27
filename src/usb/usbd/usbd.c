@@ -18,7 +18,7 @@
 #include "descriptors/hid_descriptors.h"
 #include "descriptors/xbox_og_descriptors.h"
 #include "descriptors/xinput_descriptors.h"
-#include "descriptors/switch_descriptors.h"
+#include "usb/descriptors/switch_descriptors.h"
 #include "descriptors/ps3_descriptors.h"
 #include "descriptors/psclassic_descriptors.h"
 #include "descriptors/ps4_descriptors.h"
