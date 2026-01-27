@@ -10,10 +10,6 @@
  extern "C" {
 #endif
 
-//--------------------------------------------------------------------
-// COMMON CONFIGURATION
-//--------------------------------------------------------------------
-
 #ifndef CFG_TUSB_MCU
   #error CFG_TUSB_MCU must be defined
 #endif
@@ -22,30 +18,24 @@
 #if defined(DISABLE_USB_HOST)
   #define CFG_TUSB_RHPORT0_MODE       OPT_MODE_DEVICE
 #elif defined(CONFIG_USB)
-  // Dual-role USB configuration (host + device)
   #define CFG_TUSB_RHPORT0_MODE       OPT_MODE_DEVICE
   #define CFG_TUSB_RHPORT1_MODE       OPT_MODE_HOST
   #define CFG_TUH_RPI_PIO_USB         1  
 
-  // --- MODIFICATION POUR WAVESHARE PIZERO ---
+  // --- MODIFICATION POUR TA CARTE PIZERO ---
   #undef PICO_USB_HOST_DP_PIN
   #undef PICO_USB_HOST_DM_PIN
   #define PICO_USB_HOST_DP_PIN        6
   #define PICO_USB_HOST_DM_PIN        7
   // ------------------------------------------
 #else
-  #if CFG_TUSB_MCU == OPT_MCU_LPC43XX || CFG_TUSB_MCU == OPT_MCU_LPC18XX || CFG_TUSB_MCU == OPT_MCU_MIMXRT10XX
-    #define CFG_TUSB_RHPORT0_MODE       (OPT_MODE_HOST | OPT_MODE_HIGH_SPEED)
-  #else
-    #define CFG_TUSB_RHPORT0_MODE       OPT_MODE_HOST
-  #endif
+  #define CFG_TUSB_RHPORT0_MODE       OPT_MODE_HOST
 #endif
 
 #ifndef CFG_TUSB_OS
 #define CFG_TUSB_OS                  OPT_OS_NONE
 #endif
 
-#undef CFG_TUSB_DEBUG
 #define CFG_TUSB_DEBUG               1  
 
 #ifndef CFG_TUD_MEM_SECTION
@@ -55,10 +45,6 @@
 #ifndef CFG_TUD_MEM_ALIGN
 #define CFG_TUD_MEM_ALIGN           __attribute__ ((aligned(4)))
 #endif
-
-//--------------------------------------------------------------------
-// CONFIGURATION
-//--------------------------------------------------------------------
 
 #define CFG_TUH_ENUMERATION_BUFSIZE 1280
 
@@ -71,50 +57,21 @@
 #endif
 
 #define CFG_TUH_HUB                 1
-#define CFG_TUH_CDC                 0
 #define CFG_TUH_HID                 8 
-#define CFG_TUH_MSC                 0
-#define CFG_TUH_VENDOR              0
 #define CFG_TUH_XINPUT              4 
-
-#ifdef ENABLE_BTSTACK
-#define CFG_TUH_BTD                 1
-#else
-#define CFG_TUH_BTD                 0
-#endif
-
 #define CFG_TUH_DEVICE_MAX          (4*CFG_TUH_HUB + 1)
 #define CFG_TUH_API_EDPT_XFER       1
-
 #define CFG_TUH_HID_EPIN_BUFSIZE    64
 #define CFG_TUH_HID_EPOUT_BUFSIZE   64
-
-//--------------------------------------------------------------------
-// USB DEVICE CONFIGURATION
-//--------------------------------------------------------------------
 
 #if defined(CONFIG_USB) || defined(DISABLE_USB_HOST)
   #define CFG_TUD_ENDPOINT0_SIZE    64
   #define CFG_TUD_HID               4 
   #define CFG_TUD_XID               1 
-  #define CFG_TUD_XID_EP_BUFSIZE    32 
   #define CFG_TUD_XINPUT            1 
-  #define CFG_TUD_XINPUT_EP_BUFSIZE 32 
   #define CFG_TUD_GC_ADAPTER        1 
-  #define CFG_TUD_GC_ADAPTER_EP_BUFSIZE 37 
-
-  #ifndef USBR_CDC_DEBUG
-  #define USBR_CDC_DEBUG            1 
-  #endif
-  #define CFG_TUD_CDC               (1 + USBR_CDC_DEBUG)
-
-  #define CFG_TUD_MSC               0
-  #define CFG_TUD_MIDI              0
-  #define CFG_TUD_VENDOR            0
+  #define CFG_TUD_CDC               2
   #define CFG_TUD_HID_EP_BUFSIZE    64
-  #define CFG_TUD_CDC_RX_BUFSIZE    256
-  #define CFG_TUD_CDC_TX_BUFSIZE    1024
-  #define CFG_TUD_CDC_EP_BUFSIZE    64
 #endif
 
 #ifdef __cplusplus
