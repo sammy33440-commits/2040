@@ -1,30 +1,28 @@
 #include "usbd.h"
 #include "usbd_mode.h"
-
-// Chemins des descripteurs (Plans)
 #include "usb/descriptors/hid_descriptors.h"
 #include "usb/descriptors/switch_descriptors.h"
-
+#include "usb/descriptors/ps4_descriptors.h"
 #include "tusb.h"
 #include <string.h>
 
-// Déclaration des modes externes (indispensable)
+// Déclarations des modes définis dans les autres fichiers .c
 extern const usbd_mode_t hid_mode;
 extern const usbd_mode_t switch_mode;
+extern const usbd_mode_t ps4_mode;
 
-static usb_output_mode_t output_mode = USB_OUTPUT_MODE_HID;
+static usb_output_mode_t output_mode = USB_OUTPUT_MODE_SWITCH; // Force Switch pour test
 const usbd_mode_t* usbd_modes[USB_OUTPUT_MODE_COUNT] = {0};
 static const usbd_mode_t* current_mode = NULL;
 
 void usbd_register_modes(void) {
     usbd_modes[USB_OUTPUT_MODE_HID] = &hid_mode;
     usbd_modes[USB_OUTPUT_MODE_SWITCH] = &switch_mode;
+    usbd_modes[USB_OUTPUT_MODE_PS4] = &ps4_mode;
 }
 
 void usbd_init(void) {
     usbd_register_modes();
-    // Par défaut on force le mode Switch pour tes tests
-    output_mode = USB_OUTPUT_MODE_SWITCH; 
     current_mode = usbd_modes[output_mode];
     
     tusb_rhport_init_t dev_init = { .role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_AUTO };
@@ -36,13 +34,9 @@ void usbd_init(void) {
 void usbd_task(void) {
     tud_task();
     if (current_mode && current_mode->is_ready && current_mode->is_ready()) {
-        usbd_send_report(0);
+        // Envoi automatique du rapport pour le test
+        current_mode->send_report(0, NULL, NULL, 0);
     }
-}
-
-bool usbd_send_report(uint8_t player_index) {
-    // Logique simplifiée pour le build
-    return true; 
 }
 
 // Callbacks obligatoires pour TinyUSB
@@ -52,3 +46,4 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) { (void)itf; return cur
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize) {}
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer, uint16_t reqlen) { return 0; }
 uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) { return NULL; }
+bool usbd_send_report(uint8_t player_index) { return true; }
