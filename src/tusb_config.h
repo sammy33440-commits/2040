@@ -21,8 +21,8 @@
 // On impose les VRAIS pins de ta carte
 // GPIO 6 = D+ (Data Plus)
 // GPIO 7 = D- (Data Moins)
-#define PICO_USB_HOST_DP_PIN 6
-#define PICO_USB_HOST_DM_PIN 7
+#define PICO_USB_HOST_DP_PIN 10
+#define PICO_USB_HOST_DM_PIN 11
 // -------------------------------------------------------------------
 
 //--------------------------------------------------------------------
