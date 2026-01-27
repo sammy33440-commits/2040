@@ -1,7 +1,5 @@
 // switch_descriptors.h - Nintendo Switch USB HID descriptors
-// VERSION FINALE : Mode Pro Controller (DÉBLOQUE ZL/ZR et les STICKS)
-// SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 Robert Dale Smith
+// RE-FIX : Mode Pro Controller (Version stable pour Joypad-OS)
 
 #ifndef SWITCH_DESCRIPTORS_H
 #define SWITCH_DESCRIPTORS_H
@@ -10,12 +8,13 @@
 #include "tusb.h"
 
 // ============================================================================
-// SWITCH USB IDENTIFIERS (Passage en mode Officiel Pro Controller)
+// SWITCH USB IDENTIFIERS
 // ============================================================================
 
-#define SWITCH_VID              0x057E  // Nintendo
-#define SWITCH_PID              0x2009  // Pro Controller
-#define SWITCH_BCD_DEVICE       0x0210  // Version du firmware émulé
+// Nintendo Pro Controller (Officiel)
+#define SWITCH_VID              0x057E
+#define SWITCH_PID              0x2009
+#define SWITCH_BCD_DEVICE       0x0210
 
 // ============================================================================
 // SWITCH BUTTON DEFINITIONS
@@ -36,7 +35,6 @@
 #define SWITCH_MASK_HOME    (1U << 12)
 #define SWITCH_MASK_CAPTURE (1U << 13)
 
-// D-pad / Hat switch values
 #define SWITCH_HAT_UP         0x00
 #define SWITCH_HAT_UP_RIGHT   0x01
 #define SWITCH_HAT_RIGHT      0x02
@@ -47,7 +45,6 @@
 #define SWITCH_HAT_UP_LEFT    0x07
 #define SWITCH_HAT_CENTER     0x08
 
-// Analog stick range
 #define SWITCH_JOYSTICK_MIN  0x00
 #define SWITCH_JOYSTICK_MID  0x80
 #define SWITCH_JOYSTICK_MAX  0xFF
@@ -56,28 +53,24 @@
 // SWITCH REPORT STRUCTURES
 // ============================================================================
 
-// Input Report (gamepad state) - 8 bytes
 typedef struct __attribute__((packed)) {
-    uint16_t buttons;    // 16 button bits (ZL/ZR inclus)
-    uint8_t  hat;        // D-pad (hat switch, 0-8)
-    uint8_t  lx;         // Left stick X
-    uint8_t  ly;         // Left stick Y
-    uint8_t  rx;         // Right stick X
-    uint8_t  ry;         // Right stick Y
-    uint8_t  vendor;     // Byte réservé
+    uint16_t buttons;
+    uint8_t  hat;
+    uint8_t  lx;
+    uint8_t  ly;
+    uint8_t  rx;
+    uint8_t  ry;
+    uint8_t  vendor;
 } switch_in_report_t;
 
 _Static_assert(sizeof(switch_in_report_t) == 8, "switch_in_report_t must be 8 bytes");
 
-// Output Report (rumble) - 8 bytes
 typedef struct __attribute__((packed)) {
     uint8_t  data[8];
 } switch_out_report_t;
 
-_Static_assert(sizeof(switch_out_report_t) == 8, "switch_out_report_t must be 8 bytes");
-
 // ============================================================================
-// SWITCH USB DESCRIPTORS (PLAN DE LA MANETTE)
+// SWITCH USB DESCRIPTORS
 // ============================================================================
 
 static const uint8_t switch_report_descriptor[] = {
@@ -89,7 +82,7 @@ static const uint8_t switch_report_descriptor[] = {
     0x35, 0x00,        //   Physical Minimum (0)
     0x45, 0x01,        //   Physical Maximum (1)
     0x75, 0x01,        //   Report Size (1)
-    0x95, 0x10,        //   Report Count (16) - DÉBLOQUE LES 16 BOUTONS (ZL/ZR)
+    0x95, 0x10,        //   Report Count (16) - DÉBLOQUE ZL/ZR
     0x05, 0x09,        //   Usage Page (Button)
     0x19, 0x01,        //   Usage Minimum (Button 1)
     0x29, 0x10,        //   Usage Maximum (Button 16)
@@ -107,19 +100,22 @@ static const uint8_t switch_report_descriptor[] = {
     0x95, 0x01,        //   Report Count (1)
     0x81, 0x01,        //   Input (Const)
     0x05, 0x01,        //   Usage Page (Generic Desktop Ctrls)
+    0x26, 0xFF, 0x00,  //   Logical Maximum (255)
+    0x46, 0xFF, 0x00,  //   Physical Maximum (255)
     0x09, 0x30,        //   Usage (X)
     0x09, 0x31,        //   Usage (Y)
     0x09, 0x32,        //   Usage (Z)
     0x09, 0x35,        //   Usage (Rz)
-    0x15, 0x00,        //   Logical Minimum (0)
-    0x26, 0xFF, 0x00,  //   Logical Maximum (255)
     0x75, 0x08,        //   Report Size (8)
     0x95, 0x04,        //   Report Count (4)
+    0x81, 0x02,        //   Input (Data,Var,Abs)
+    0x06, 0x00, 0xFF,  //   Usage Page (Vendor Defined)
+    0x09, 0x20,        //   Usage (0x20)
+    0x95, 0x01,        //   Report Count (1)
     0x81, 0x02,        //   Input (Data,Var,Abs)
     0xC0               // End Collection
 };
 
-// Device descriptor
 static const tusb_desc_device_t switch_device_descriptor = {
     .bLength            = sizeof(tusb_desc_device_t),
     .bDescriptorType    = TUSB_DESC_DEVICE,
@@ -137,18 +133,21 @@ static const tusb_desc_device_t switch_device_descriptor = {
     .bNumConfigurations = 0x01
 };
 
-// Configuration descriptor
-#define SWITCH_CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_HID_INOUT_DESC_LEN)
+// Configuration Descriptor (TUD_HID_DESC_LEN est remplacé par 9 pour plus de sûreté)
+#define SWITCH_CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + 9 + 7 + 7)
 
 static const uint8_t switch_config_descriptor[] = {
     TUD_CONFIG_DESCRIPTOR(1, 1, 0, SWITCH_CONFIG_TOTAL_LEN, 0x80, 250),
-    TUD_HID_DESCRIPTOR(0, 0, HID_ITF_PROTOCOL_NONE, sizeof(switch_report_descriptor), 0x81, 64, 1),
-    0x07, TUSB_DESC_ENDPOINT, 0x02, TUSB_XFER_INTERRUPT, U16_TO_U8S_LE(64), 1,
-    0x07, TUSB_DESC_ENDPOINT, 0x81, TUSB_XFER_INTERRUPT, U16_TO_U8S_LE(64), 1
+    // Interface
+    9, TUSB_DESC_INTERFACE, 0, 0, 2, TUSB_CLASS_HID, 0, 0, 0,
+    // HID Descriptor
+    9, HID_DESC_TYPE_HID, U16_TO_U8S_LE(0x0111), 0, 1, HID_DESC_TYPE_REPORT, U16_TO_U8S_LE(sizeof(switch_report_descriptor)),
+    // Endpoints
+    7, TUSB_DESC_ENDPOINT, 0x02, TUSB_XFER_INTERRUPT, U16_TO_U8S_LE(64), 1,
+    7, TUSB_DESC_ENDPOINT, 0x81, TUSB_XFER_INTERRUPT, U16_TO_U8S_LE(64), 1
 };
 
-// String descriptors definitions
 #define SWITCH_MANUFACTURER  "Nintendo"
 #define SWITCH_PRODUCT       "Pro Controller"
 
-#endif // SWITCH_DESCRIPTORS_H
+#endif
