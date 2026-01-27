@@ -1,18 +1,27 @@
 /*
  * Joypad - Modular controller firmware for RP2040-based devices
- * MODIFIED FOR WAVESHARE RP2350 FORCE PIN 28
+ *
+ * A flexible foundation for building controller adapters, arcade sticks,
+ * custom controllers, and any device that routes inputs to outputs.
+ * Apps define the product behavior while the core handles the complexity.
+ *
+ * Inputs:  USB host (HID, X-input), Native (console controllers), BLE*, UART
+ * Outputs: Native (GameCube, PCEngine, etc.), USB device*, BLE*, UART
+ * Core:    Router, players, profiles, feedback, storage, LEDs
+ *
+ * Whether you're building a simple adapter or a full custom controller,
+ * configure an app and let the firmware handle the rest.
+ *
+ * (* planned)
+ *
+ * Copyright (c) 2022-2025 Robert Dale Smith
+ * https://github.com/RobertDaleSmith/Joypad
  */
 
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "pico/flash.h"
-
-// --- AJOUT POUR FORCER L'USB ---
-#include "pio_usb.h" 
-// Si le build échoue à cause de cette ligne, retire-la et déclare la fonction manuellement :
-// void pio_usb_host_add_port(uint8_t pin, uint8_t pin_dm);
-// -------------------------------
 
 #include "core/input_interface.h"
 #include "core/output_interface.h"
@@ -41,20 +50,27 @@ static volatile bool core1_task_ready = false;
 
 // Core 1 wrapper - initializes flash safety, then waits for and runs actual task
 static void core1_wrapper(void) {
+  // Initialize multicore lockout for flash_safe_execute to work
+  // This allows Core 0 to safely write to flash while Core 1 is running
   flash_safe_execute_core_init();
+
+  // Wait for Core 0 to assign a task (or signal no task needed)
   while (!core1_task_ready) {
-    __wfe(); 
+    __wfe();  // Wait for event (woken by __sev() from Core 0)
   }
+
+  // Run the actual core1 task if one was provided
   if (core1_actual_task) {
     core1_actual_task();
   } else {
+    // No task - just idle forever while handling flash lockout requests
     while (1) {
-      __wfi(); 
+      __wfi();  // Wait for interrupt (low power idle)
     }
   }
 }
 
-// Core 0 main loop
+// Core 0 main loop - pinned in SRAM for consistent timing
 static void __not_in_flash_func(core0_main)(void)
 {
   printf("[joypad] Entering main loop\n");
@@ -67,7 +83,7 @@ static void __not_in_flash_func(core0_main)(void)
     players_task();
     if (first_loop) printf("[joypad] Loop: storage\n");
     storage_task();
-    
+    // Run output interface tasks FIRST (ensures DC maple is set up before input polling)
     for (uint8_t i = 0; i < output_count; i++) {
       if (outputs[i] && outputs[i]->task) {
         if (first_loop) printf("[joypad] Loop: output %s\n", outputs[i]->name);
@@ -78,6 +94,7 @@ static void __not_in_flash_func(core0_main)(void)
     if (first_loop) printf("[joypad] Loop: app\n");
     app_task();
 
+    // Poll all input interfaces declared by the app
     for (uint8_t i = 0; i < input_count; i++) {
       if (inputs[i] && inputs[i]->task) {
         if (first_loop) printf("[joypad] Loop: input %s\n", inputs[i]->name);
@@ -94,27 +111,20 @@ int main(void)
 
   printf("\n[joypad] Starting...\n");
 
-  // --- MODIFICATION FORCE BRUTE ---
-  // On tente d'activer le port USB manuellement sur 28/29
-  // C'est la méthode de la dernière chance.
-  printf("[joypad] FORCING PIO USB ON PIN 28\n");
-  // Le driver PIO USB utilise généralement ppc_usb_config, mais on tente l'init directe
-  // Si cette fonction n'est pas trouvée au build, c'est que la librairie n'est pas linkée ici.
-  // Note: PIO_USB_PINOUT_DPDM est souvent implicite.
-  pio_usb_host_add_port(28, 29); 
-  // --------------------------------
+  sleep_ms(250);  // Brief pause for stability
 
-  sleep_ms(250); 
-
+  // Launch Core 1 early for flash_safe_execute support
+  // Core 1 will init flash safety and wait for task assignment
   printf("[joypad] Launching core1 for flash safety...\n");
   multicore_launch_core1(core1_wrapper);
-  sleep_ms(10); 
+  sleep_ms(10);  // Brief delay to let Core 1 initialize
 
   leds_init();
   storage_init();
   players_init();
   app_init();
 
+  // Get and initialize input interfaces from app
   inputs = app_get_input_interfaces(&input_count);
   for (uint8_t i = 0; i < input_count; i++) {
     if (inputs[i] && inputs[i]->init) {
@@ -123,9 +133,10 @@ int main(void)
     }
   }
 
+  // Get and initialize output interfaces from app
   outputs = app_get_output_interfaces(&output_count);
   if (output_count > 0 && outputs[0]) {
-    active_output = outputs[0]; 
+    active_output = outputs[0];  // Set primary output for other modules
   }
   for (uint8_t i = 0; i < output_count; i++) {
     if (outputs[i] && outputs[i]->init) {
@@ -134,18 +145,22 @@ int main(void)
     }
   }
 
+  // Find core1 task from first output that has one
+  // Note: Only one output can use core1 (RP2040 has 2 cores)
   for (uint8_t i = 0; i < output_count; i++) {
     if (outputs[i] && outputs[i]->core1_task) {
       printf("[joypad] Core1 task from: %s\n", outputs[i]->name);
       core1_actual_task = outputs[i]->core1_task;
-      break; 
+      break;  // Only one core1 task possible
     }
   }
 
+  // Signal Core 1 that task assignment is complete
+  // Core 1 was launched early for flash safety, now it can run its actual task
   printf("[joypad] Signaling core1 (task: %s)\n",
          core1_actual_task ? "yes" : "idle");
   core1_task_ready = true;
-  __sev(); 
+  __sev();  // Send event to wake Core 1 from __wfe()
 
   core0_main();
 
