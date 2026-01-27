@@ -1,5 +1,4 @@
-/*
- * The MIT License (MIT)
+/* * The MIT License (MIT)
  *
  * Copyright (c) 2019 Ha Thach (tinyusb.org)
  *
@@ -50,7 +49,7 @@
   #define CFG_TUSB_RHPORT1_MODE       OPT_MODE_HOST
   #define CFG_TUH_RPI_PIO_USB         1  // Enable PIO USB host driver
 
-  // --- REDIRECTION POUR WAVESHARE PIZERO (GPIO 6/7) ---
+  // --- MODIFICATION POUR WAVESHARE PIZERO (GPIO 6/7) ---
   #ifdef PICO_USB_HOST_DP_PIN
     #undef PICO_USB_HOST_DP_PIN
   #endif
@@ -76,9 +75,9 @@
 
 // CFG_TUSB_DEBUG is defined by compiler in DEBUG build
 #undef CFG_TUSB_DEBUG
-#define CFG_TUSB_DEBUG               1  // Enable debug logging
+#define CFG_TUSB_DEBUG               1  // Enable debug logging (1 = normal, 2 = verbose)
 
-/* USB DMA macros */
+/* USB DMA on some MCUs can only access a specific SRAM region with restriction on alignment. */
 #ifndef CFG_TUD_MEM_SECTION
 #define CFG_TUD_MEM_SECTION
 #endif
@@ -91,6 +90,7 @@
 // CONFIGURATION
 //--------------------------------------------------------------------
 
+// Size of buffer to hold descriptors and other data used for enumeration
 #define CFG_TUH_ENUMERATION_BUFSIZE 1280
 
 #ifndef CFG_TUH_MEM_SECTION
@@ -103,47 +103,65 @@
 
 #define CFG_TUH_HUB                 1
 #define CFG_TUH_CDC                 0
-#define CFG_TUH_HID                 8   // Max 8 HID interfaces
+#define CFG_TUH_HID                 8   // Max 8 HID interfaces total (2 per device typical)
 #define CFG_TUH_MSC                 0
 #define CFG_TUH_VENDOR              0
 #define CFG_TUH_XINPUT              4   // Max 4 XInput interfaces
 
-// Bluetooth dongle support
+// Bluetooth dongle support - only enabled when ENABLE_BTSTACK is defined by CMake
 #ifdef ENABLE_BTSTACK
 #define CFG_TUH_BTD                 1
 #else
 #define CFG_TUH_BTD                 0
 #endif
 
+// max device support (excluding hub device): 1 hub typically has 4 ports
 #define CFG_TUH_DEVICE_MAX          (4*CFG_TUH_HUB + 1)
+
+// Enable endpoint transfer API with callback support (needed for Switch 2 bulk transfers)
 #define CFG_TUH_API_EDPT_XFER       1
 
+//------------- HID -------------//
 #define CFG_TUH_HID_EPIN_BUFSIZE    64
 #define CFG_TUH_HID_EPOUT_BUFSIZE   64
 
 //--------------------------------------------------------------------
-// USB DEVICE CONFIGURATION
+// USB DEVICE CONFIGURATION (CONFIG_USB or DISABLE_USB_HOST builds)
 //--------------------------------------------------------------------
 
 #if defined(CONFIG_USB) || defined(DISABLE_USB_HOST)
+  // Device configuration
   #define CFG_TUD_ENDPOINT0_SIZE    64
+
+  // Standard HID gamepad mode (default)
   #define CFG_TUD_HID               4   // Up to 4 HID gamepads
-  #define CFG_TUD_XID               1   // Enable XID
-  #define CFG_TUD_XID_EP_BUFSIZE    32
-  #define CFG_TUD_XINPUT            1   // Enable XInput
-  #define CFG_TUD_XINPUT_EP_BUFSIZE 32
-  #define CFG_TUD_GC_ADAPTER        1   // Enable GC adapter
-  #define CFG_TUD_GC_ADAPTER_EP_BUFSIZE 37
 
+  // Xbox Original (XID) mode support
+  #define CFG_TUD_XID               1   // Enable XID class driver
+  #define CFG_TUD_XID_EP_BUFSIZE    32  // XID endpoint buffer size
+
+  // Xbox 360 (XInput) mode support
+  #define CFG_TUD_XINPUT            1   // Enable XInput class driver
+  #define CFG_TUD_XINPUT_EP_BUFSIZE 32  // XInput endpoint buffer size
+
+  // GameCube Adapter mode support
+  #define CFG_TUD_GC_ADAPTER        1   // Enable GC adapter class driver
+  #define CFG_TUD_GC_ADAPTER_EP_BUFSIZE 37  // GC adapter endpoint buffer size (37 bytes)
+
+  // CDC configuration: 0=none, 1=data only, 2=data+debug
   #ifndef USBR_CDC_DEBUG
-  #define USBR_CDC_DEBUG            1
+  #define USBR_CDC_DEBUG            1   // Default: debug enabled
   #endif
-  #define CFG_TUD_CDC               (1 + USBR_CDC_DEBUG)
+  #define CFG_TUD_CDC               (1 + USBR_CDC_DEBUG)  // 1=data, 2=data+debug
 
-  #define CFG_TUD_MSC               0
-  #define CFG_TUD_MIDI              0
-  #define CFG_TUD_VENDOR            0
+  #define CFG_TUD_MSC               0   // No mass storage
+  #define CFG_TUD_MIDI              0   // No MIDI
+  #define CFG_TUD_VENDOR            0   // No vendor-specific
+
+  // HID buffer sizes
   #define CFG_TUD_HID_EP_BUFSIZE    64
+
+  // CDC buffer sizes
   #define CFG_TUD_CDC_RX_BUFSIZE    256
   #define CFG_TUD_CDC_TX_BUFSIZE    1024
   #define CFG_TUD_CDC_EP_BUFSIZE    64
