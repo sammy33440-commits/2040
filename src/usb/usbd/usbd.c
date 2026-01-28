@@ -1,17 +1,19 @@
 #include "usbd.h"
 #include "usbd_mode.h"
 
-// On n'inclut que ce qui existe sur ton dépôt GitHub
+// CHEMINS RELATIFS (INFAILLIBLES)
+// On remonte d'un dossier (..) pour aller dans descriptors
 #include "../descriptors/hid_descriptors.h"
 #include "../descriptors/switch_descriptors.h"
 
 #include "tusb.h"
 #include <string.h>
 
-// On déclare les modes comme étant définis ailleurs
+// On déclare uniquement les modes qu'on va utiliser
 extern const usbd_mode_t hid_mode;
 extern const usbd_mode_t switch_mode;
 
+// On force le mode Switch
 static usb_output_mode_t output_mode = USB_OUTPUT_MODE_SWITCH; 
 const usbd_mode_t* usbd_modes[USB_OUTPUT_MODE_COUNT] = {0};
 static const usbd_mode_t* current_mode = NULL;
@@ -24,8 +26,11 @@ void usbd_register_modes(void) {
 void usbd_init(void) {
     usbd_register_modes();
     current_mode = usbd_modes[output_mode];
+    
+    // Initialisation Port 0 (Device)
     tusb_rhport_init_t dev_init = { .role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_AUTO };
     tusb_init(0, &dev_init);
+    
     if (current_mode && current_mode->init) current_mode->init();
 }
 
@@ -36,9 +41,12 @@ void usbd_task(void) {
     }
 }
 
-bool usbd_send_report(uint8_t player_index) { (void)player_index; return true; }
+bool usbd_send_report(uint8_t player_index) {
+    (void)player_index;
+    return true; 
+}
 
-// CALLBACKS OBLIGATOIRES
+// Callbacks TinyUSB
 uint8_t const *tud_descriptor_device_cb(void) { return current_mode->get_device_descriptor(); }
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index) { (void)index; return current_mode->get_config_descriptor(); }
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) { (void)itf; return current_mode->get_report_descriptor(); }
