@@ -1,6 +1,6 @@
 #include "tusb.h"
-#include "usb/descriptors/switch_descriptors.h"
 #include "usb/usbd/usbd.h"
+#include "usb/descriptors/switch_descriptors.h"
 #include <string.h>
 
 static switch_in_report_t switch_report;
