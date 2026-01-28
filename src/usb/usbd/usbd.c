@@ -1,14 +1,14 @@
 #include "usbd.h"
 #include "usbd_mode.h"
 
-// On n'inclut que ce qui existe sur ton Git
+// On n'inclut que les descripteurs présents sur ton dépôt
 #include "usb/descriptors/hid_descriptors.h"
 #include "usb/descriptors/switch_descriptors.h"
 
 #include "tusb.h"
 #include <string.h>
 
-// Déclaration des modes externes
+// On dit au compilateur que ces modes existent dans d'autres fichiers .c
 extern const usbd_mode_t hid_mode;
 extern const usbd_mode_t switch_mode;
 
@@ -23,6 +23,7 @@ void usbd_register_modes(void) {
 
 void usbd_init(void) {
     usbd_register_modes();
+    output_mode = USB_OUTPUT_MODE_SWITCH; // On force le mode Switch
     current_mode = usbd_modes[output_mode];
     
     tusb_rhport_init_t dev_init = { .role = TUSB_ROLE_DEVICE, .speed = TUSB_SPEED_AUTO };
